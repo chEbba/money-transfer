@@ -24,7 +24,7 @@ class HttpServer(handler: RequestHandler,
   private val bossGroup = new NioEventLoopGroup(1)
   private val workerGroup = new NioEventLoopGroup(Runtime.getRuntime.availableProcessors() * 2 + 1)
 
-  def shutdown() {
+  def shutdown(): Unit = {
     log.info("--> Stopping HttpServer")
     bossGroup.shutdownGracefully()
     workerGroup.shutdownGracefully()
@@ -35,15 +35,17 @@ class HttpServer(handler: RequestHandler,
     log.info("<-- Stopped HttpServer")
   }
 
-  def start() = {
+  def start(): Unit = {
     val boot = new ServerBootstrap()
     boot.group(bossGroup, workerGroup)
       .channel(classOf[NioServerSocketChannel])
       .childHandler(new HttpServerChannelInitializer(handler, options)(ExecutionContext.fromExecutorService(workerGroup)))
       .option(ChannelOption.SO_BACKLOG, new Integer(16000))
 
+    boot.bind(options.port).sync()
     log.info(s"HTTP server started with options: $options")
   }
+
 }
 
 class HttpServerChannelInitializer(handler: RequestHandler, options: HttpServerOptions)(implicit execctx: ExecutionContext)

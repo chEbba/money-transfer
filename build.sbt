@@ -18,5 +18,7 @@ libraryDependencies ++= Seq(
   "com.wordnik" % "swagger-annotations" % "1.3.10",
   "javax.ws.rs" % "jsr311-api" % "1.1.1",
 
-  "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+
+  "org.scalatest" %% "scalatest" % "2.2.6" % "test",
+  "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
 )
