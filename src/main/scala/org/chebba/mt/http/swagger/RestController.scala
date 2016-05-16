@@ -15,8 +15,7 @@ import scala.reflect.runtime.universe._
   * @author Kirill chEbba Chebunin
   */
 trait RestController extends Loggable {
-  type CallbackHandler[I, O] = RestRequest[I] => Future[O]
-  type RestHandler[I, O] = RestRequest[I] => Future[RestResponse]
+  type CallbackHandler[I, O] = ApiRequest[I] => Future[O]
   type Handler = (MethodRequest) => Future[HttpResp]
 
   implicit protected def execctx: ExecutionContext
@@ -32,15 +31,36 @@ trait RestController extends Loggable {
   protected def intParam(name: String) = QueryParameter(name, Primitive.INT)
   protected def strParam(name: String) = QueryParameter(name, Primitive.STRING)
 
-  implicit protected def dataCallback[I,O](handler: CallbackHandler[I, O]): Callback[I, O] = Callback(handler)
+  implicit protected def dataCallback[I,O](pureHandler: CallbackHandler[I, O])
+                                          (implicit out: TypeTag[O], writes: Writes[O], in: TypeTag[I], reads: Reads[I]): Callback = {
+    val handler = {req: MethodRequest => {
+      pureHandler(bindRequest[I](req)).map { data =>
+        val string1 = Json.toJson(data).toString()
+        HttpResp(OK,
+          body = Some(Content(string1)),
+          headers = Map(ContentType(_.JSON))
+        )
+      }.recover {
+        case e: ApiError =>
+          HttpResp(e.code,
+            body = Some(Content(Json.toJson(e.getMessage).toString())),
+            headers = Map(ContentType(_.JSON))
+          )
+        case _ =>
+          HttpResp(INTERNAL_SERVER_ERROR)
+      }
+    }}
 
-  private def bindRequest[I](req: MethodRequest)(implicit in: TypeTag[I], reads: Reads[I]): RestRequest[I] = in.tpe match {
-    case u if u =:= typeOf[Unit] => RestRequest(Unit.asInstanceOf[I], req.params)
-    case o if o <:< typeOf[Option[Any]] => RestRequest(
+    Callback(handler, in.tpe, out.tpe)
+  }
+
+  private def bindRequest[I](req: MethodRequest)(implicit in: TypeTag[I], reads: Reads[I]): ApiRequest[I] = in.tpe match {
+    case u if u =:= typeOf[Unit] => ApiRequest(Unit.asInstanceOf[I], req.params)
+    case o if o <:< typeOf[Option[Any]] => ApiRequest(
       if (req.http.content.hasRemaining) parseRequest[I](req) else None.asInstanceOf[I],
       req.params
     )
-    case _ => RestRequest(parseRequest[I](req), req.params)
+    case _ => ApiRequest(parseRequest[I](req), req.params)
   }
 
   private def parseRequest[I](req: MethodRequest)(implicit in: TypeTag[I], reads: Reads[I]) = {
@@ -72,30 +92,46 @@ trait RestController extends Loggable {
 
   case class MethodHandlerBuilder(dmb: MethodParamBuilder, desc: String) {
 
-    def :=[I, O](callback: Callback[I,O])(implicit out: TypeTag[O], writes: Writes[O], in: TypeTag[I], reads: Reads[I]) = {
-      val handler = {req: MethodRequest => {
-        callback.handler(bindRequest[I](req)).map { data =>
-          HttpResp(OK,
-            body = Some(Content(Json.toJson(data).toString())),
-            headers = Map(ContentType(_.JSON))
-          )
-        }
-      }}
-
-      methodBuffer :+= (OperationDefinition(Method(dmb.mb.httpMethod, dmb.mb.path), in.tpe, out.tpe, callback.codes, desc) -> handler)
+    def :=(callback: Callback) = {
+      methodBuffer :+= (OperationDefinition(Method(dmb.mb.httpMethod, dmb.mb.path), callback.in, callback.out, callback.errors, desc) -> callback.handler)
     }
+//    def :=[I, O](callback: Callback[I,O])(implicit out: TypeTag[O], writes: Writes[O], in: TypeTag[I], reads: Reads[I]) = {
+//      val handler = {req: MethodRequest => {
+//        val f = callback.handler(bindRequest[I](req))
+//        val o = out
+//        f.map { data =>
+//          HttpResp(OK,
+//            body = Some(Content(Json.toJson(data).toString())),
+//            headers = Map(ContentType(_.JSON))
+//          )
+//        }.recover {
+//          case e: ApiError =>
+//            HttpResp(e.code,
+//              body = Some(Content(Json.toJson(e.getMessage).toString())),
+//              headers = Map(ContentType(_.JSON))
+//            )
+//          case _ =>
+//            HttpResp(INTERNAL_SERVER_ERROR)
+//        }
+//      }}
+//
+//      methodBuffer :+= (OperationDefinition(Method(dmb.mb.httpMethod, dmb.mb.path), in.tpe, out.tpe, callback.errors, desc) -> handler)
+//    }
   }
 
-  case class Callback[I,O](handler: CallbackHandler[I,O], codes: Map[HttpResponseStatus, String] = Map(OK -> "Success")) {
-    def codes(codes: (HttpResponseStatus, String)*) = Callback(handler, codes.toMap)
+  case class Callback(handler: Handler, in: Type, out: Type, errors: Map[HttpResponseStatus, String] = Map.empty) {
+    def errors(errors: (HttpResponseStatus, String)*) = copy(errors = errors.toMap)
   }
+
+//  case class Callback[I,O](handler: CallbackHandler[I,O], errors: Map[HttpResponseStatus, String] = Map.empty) {
+//    def errors(errors: (HttpResponseStatus, String)*) = copy(errors = errors.toMap)
+//  }
 }
 
-case class RestRequest[I] (data: I, params: Map[String, Any]) {
+case class ApiRequest[I](data: I, params: Map[String, Any]) {
   def param[A](name: String) = params(name).asInstanceOf[A]
   def paramOpt[A](name: String) = params.get(name).map(v => v.asInstanceOf[A])
 }
-case class RestResponse(body: String, status: HttpResponseStatus)
 
 case class Method(httpMethod: HttpMethod, path: Path) extends Ordered[Method] {
   def name = s"${httpMethod.toString.toLowerCase()}.${path.toString.replace('/', '.')}"
@@ -108,3 +144,5 @@ case class Method(httpMethod: HttpMethod, path: Path) extends Ordered[Method] {
   }
 }
 case class MethodRequest(method: Method, http: HttpReq, params: Parameters)
+
+class ApiError(val code: HttpResponseStatus, message: String) extends RuntimeException(message)

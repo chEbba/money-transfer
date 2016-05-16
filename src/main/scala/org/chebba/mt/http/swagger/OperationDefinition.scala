@@ -11,7 +11,7 @@ import scala.collection.convert.decorateAsScala._
 /**
   * @author Kirill chEbba Chebunin
   */
-case class OperationDefinition(method: Method, in: Type, out: Type, codes: Map[HttpResponseStatus, String], desc: String) {
+case class OperationDefinition(method: Method, in: Type, out: Type, errors: Map[HttpResponseStatus, String], desc: String) {
 
   def models: Seq[Model] = List(in, out).flatMap(typeModels).distinct
 
@@ -30,14 +30,14 @@ case class OperationDefinition(method: Method, in: Type, out: Type, codes: Map[H
       case _ => List(bodyParameter).flatten
     })
 
-  def responseMessages: Seq[ResponseMessage] = codes.toSeq.map(e => ResponseMessage(e._1.code(), e._2))
+  def responseMessages: Seq[ResponseMessage] = errorMessages
 
   def responseModel: Option[String] = ModelType(out) match {
     case u if u.fieldType == Primitive.VOID => None
     case m => Some(m.name)
   }
 
-//  def errorMessages: Seq[ResponseMessage] = errors.toList.map(e => ResponseMessage(e._1.value, e._2))
+  def errorMessages: Seq[ResponseMessage] = errors.toSeq.map(e => ResponseMessage(e._1.code(), e._2))
 
   def typeModels(tpe: Type): Seq[Model] = {
     val main = new ModelType(tpe)

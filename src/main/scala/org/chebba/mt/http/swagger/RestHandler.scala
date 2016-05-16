@@ -61,10 +61,9 @@ object RestHandler {
         case GET -> DOC_PATH => declarationResponse
       }
       val methods = Function.unlift { req: HttpReq =>
-        val path = req.path.stripPrefix("/").stripSuffix("/")
         controller.operations.flatMap { case (op, handler) =>
           if (op.method.httpMethod == req.method) {
-            op.method.path.parse(path).map(MethodRequest(op.method, req, _) -> handler)
+            op.method.path.parse(req.path).map(MethodRequest(op.method, req, _) -> handler)
           } else {
             None
           }
