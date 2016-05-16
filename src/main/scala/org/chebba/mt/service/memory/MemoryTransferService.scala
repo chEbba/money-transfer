@@ -88,7 +88,9 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
             }
 
             val toTr = toAcc.synchronized {
-              transaction(toAcc, amount.value, TransactionType.TransferTo(fromAccountId, fromTr.id))
+              val tr = transaction(toAcc, amount.value, TransactionType.TransferTo(fromAccountId, fromTr.id))
+              fromTr.status = TransactionStatus.COMPLETE
+              tr
             }
 
             (fromTr.toTransaction(fromAccountId), toTr.toTransaction(toAccountId))
@@ -97,7 +99,6 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
   }
 
   private def transaction[T <: TransactionType](account: AccountRecord, amount: Long, ttype: T): TransactionRecord[T] = {
-    account.balance += amount
     val tr = new TransactionRecord(
       id = transactionIdSeq.incrementAndGet(),
       amount = amount,
@@ -105,6 +106,7 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
       ttype = ttype
     )
     account.transactions += tr
+    account.balance += amount
     tr
   }
 }
