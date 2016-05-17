@@ -43,7 +43,8 @@ object MTServer {
     val accountController = new AccountController(memoryService, memoryService)(restPool)
 
     new HttpServer(handler = RestHandler(Seq(accountController)), options = HttpServerOptions(
-      port = port
+      port = port,
+      maxContentLength = 1024*1024
     ))
   }
 }

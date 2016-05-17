@@ -11,6 +11,8 @@ Or just download the current release from release pages and run:
 java -jar money-transfer-assembly-{VERSION}.jar
 ```
 
+Go to [http://localhost:9000](http://localhost:9000)
+
 Properties:
 
 | Property              | Description   | Default   |

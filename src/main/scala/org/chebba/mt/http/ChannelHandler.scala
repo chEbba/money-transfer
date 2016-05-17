@@ -1,7 +1,5 @@
 package org.chebba.mt.http
 
-import java.util.concurrent.ScheduledExecutorService
-
 import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
 import io.netty.handler.codec.http.HttpResponseStatus
 import org.slf4j.LoggerFactory
@@ -43,16 +41,16 @@ trait ChannelHandler extends SimpleChannelInboundHandler[HttpReq] {
 }
 
 
-class DefaultChannelHandler(handler: RequestHandler, timeout: Int, scheduler: ScheduledExecutorService)
+class DefaultChannelHandler(handler: RequestHandler, queryFactory: (ChannelHandlerContext, HttpReq) => HttpStream)
                            (implicit execctx: ExecutionContext) extends ChannelHandler {
 
-  private var stream: Option[SingleHttpStream] = None
+  private var stream: Option[HttpStream] = None
 
   private def getStream(ctx: ChannelHandlerContext, req: HttpReq) = {
     stream.getOrElse {
-      val s = new SingleHttpStream(ctx, timeout, scheduler)
-      stream = Some(s)
-      s
+      val q = queryFactory(ctx, req)
+      stream = Some(q)
+      q
     }
   }
 

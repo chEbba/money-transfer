@@ -9,7 +9,7 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.http._
-import org.slf4j.LoggerFactory
+import org.chebba.mt.util.Loggable
 
 import scala.concurrent.ExecutionContext
 
@@ -17,9 +17,7 @@ import scala.concurrent.ExecutionContext
   * @author Kirill chEbba Chebunin
   */
 class HttpServer(handler: RequestHandler,
-                 val options: HttpServerOptions = HttpServerOptions()) {
-
-  private val log = LoggerFactory.getLogger(getClass)
+                 val options: HttpServerOptions = HttpServerOptions()) extends Loggable {
 
   private val bossGroup = new NioEventLoopGroup(1)
   private val workerGroup = new NioEventLoopGroup(Runtime.getRuntime.availableProcessors() * 2 + 1)
@@ -60,11 +58,12 @@ class HttpServerChannelInitializer(handler: RequestHandler, options: HttpServerO
 
     val p = ch.pipeline()
     p.addLast("httpDecoder",    new HttpRequestDecoder(options.maxInitialLineLength, options.maxHeaderSize, options.maxChunkSize))
+    p.addLast("httpEncoder",    new HttpResponseEncoder())
+    p.addLast("httpCompressor", new HttpContentCompressor())
     p.addLast("httpAggregator", new HttpObjectAggregator(options.maxContentLength))
     p.addLast("strdDecoder",    new StrdRequestDecoder())
-    p.addLast("httpEncoder",    new HttpResponseEncoder())
     p.addLast("strdEncoder",    new StrdResponseEncoder())
-    p.addLast("handler",        new DefaultChannelHandler(handler, options.timeout, scheduler))
+    p.addLast("handler",        new DefaultChannelHandler(handler, HttpStream.factory(scheduler, options.timeout)))
   }
 }
 

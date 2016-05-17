@@ -1,4 +1,4 @@
-package strd.net.http
+package org.chebba.mt.http
 
 import io.netty.handler.codec.http.HttpHeaders
 import io.netty.handler.codec.http.cookie.{DefaultCookie, ServerCookieEncoder, Cookie => NettyCookie}
