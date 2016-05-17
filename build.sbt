@@ -24,3 +24,6 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.6" % "test",
   "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
 )
+
+mainClass in Compile := Some("org.chebba.mt.MTServerApp")
+mainClass in assembly := Some("org.chebba.mt.MTServerApp")
