@@ -13,6 +13,10 @@ object ContentType {
   val PLAIN   = "text/plain"
   val GIF     = "image/gif"
   val BINARY  = "application/octet-stream"
+  val CSS     = "text/css"
+  val PNG     = "image/png"
+  val ICO     = "image/x-icon"
+  val TTF     = "application/x-font-ttf"
 
   def apply(x: (this.type ) => String): (String, Seq[String]) = HttpHeaders.Names.CONTENT_TYPE -> Seq(x(this))
   def apply(s: String): (String, Seq[String]) = HttpHeaders.Names.CONTENT_TYPE -> Seq(s)

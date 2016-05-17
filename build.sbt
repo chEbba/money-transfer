@@ -11,6 +11,8 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.7.20",
   "ch.qos.logback" % "logback-classic" % "1.1.7",
 
+  "commons-io" % "commons-io" % "2.5",
+
   "io.netty" % "netty-all" % "4.0.36.Final",
 
   "com.typesafe.play" %% "play-json" % "2.5.3",

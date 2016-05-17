@@ -27,31 +27,40 @@ class AccountController(accountService: AccountService, transactionService: Tran
     accountService.getAccount(id).map(_.getOrElse {
       throw new NotFoundException("account", id)
     })
-  } errors {
+  } errors (
     NOT_FOUND -> "Account is not found"
-  }
+  )
 
   GET /"account"/int("id")/"transaction" will "List account transactions" := { req: ApiRequest[Unit] =>
     val id = req.param[Int]("id")
     transactionService.getTransactions(id).map(_.map(TransactionView(_)))
-  } errors {
+  } errors (
     NOT_FOUND -> "Account is not found"
-  }
+  )
 
   POST /"account"/int("id")/"transaction"/"credit" will "Add money to account" := { req: ApiRequest[Credit] =>
-    transactionService.creditAccount(req.param[Int]("id"), Money(req.data.value)).map(_ => ())
-  } errors {
-    NOT_FOUND -> "Account is not found"
-  }
+    transactionService.creditAccount(req.param[Int]("id"), Money(req.data.value)).transform(_ => (), {
+      case e: IllegalArgumentException => new BadRequest(e.getMessage)
+      case e => e
+    })
+  } errors (
+    NOT_FOUND -> "Account is not found",
+    BAD_REQUEST -> "Wrong parameters"
+  )
 
   POST /"account"/int("id")/"transaction"/"transfer" will "Add money to account" := { req: ApiRequest[Transfer] =>
-    transactionService.transferToAccount(req.param[Int]("id"), req.data.to, Money(req.data.value)).map(_ => ())
-  } errors {
-    NOT_FOUND -> "Account is not found"
-  }
+    transactionService.transferToAccount(req.param[Int]("id"), req.data.to, Money(req.data.value)).transform(_ => (), {
+      case e: IllegalArgumentException => new BadRequest(e.getMessage)
+      case e => e
+    })
+  } errors (
+    NOT_FOUND -> "Account is not found",
+    BAD_REQUEST -> "Wrong parameters"
+  )
 }
 
 class NotFoundException(resource: String, id: Any) extends ApiError(NOT_FOUND, s"Resource $resource#$id is not found")
+class BadRequest(message: String) extends ApiError(BAD_REQUEST, message)
 
 case class Credit(value: BigDecimal)
 case class Transfer(value: BigDecimal, to: Int)

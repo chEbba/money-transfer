@@ -11,21 +11,25 @@ import scala.concurrent.Future
   * @author Kirill chEbba Chebunin
   */
 object RestHandler {
-  def apply(controllers: Seq[RestController], endpoint: String = "/") = new NestedPartialRequestHandler {
+  def apply(controllers: Seq[RestController], endpoint: String = "") = new NestedPartialRequestHandler {
     private val controllerHandlers = controllers.map(new ResourceHandler(_))
 
+    private val ui = new SwaggerUiHandler(endpoint)
+
     private val docs = new PartialRequestHandler {
-      private val listing = ResourceListing(controllerHandlers.map(r => Resource(r.basePath.toString, None)), apiVersion = Some("1.0"))
-      private val listingResponse = Future.successful(HttpResp(
-        body = Some(Content(Json.toJson(listing).toString)),
-        headers = Map(ContentType(_.JSON))
-      ))
+      private def listingResponse = Json.toJson(
+        ResourceListing(controllerHandlers.map(r => Resource(r.basePath.toString, None)), apiVersion = Some("1.0")
+      )).toString
+
       def tryHandle: PartialFunction[HttpReq, Future[HttpResp]] = {
-        case GET -> "api-docs" => listingResponse
+        case GET -> "api-docs" => Future.successful(HttpResp(
+          body = Some(Content(listingResponse)),
+          headers = Map(ContentType(_.JSON))
+        ))
       }
     }
 
-    def handlers: Seq[PartialRequestHandler] = docs +: controllerHandlers
+    def handlers: Seq[PartialRequestHandler] = ui +: docs +: controllerHandlers
   }
 
   class ResourceHandler(controller: RestController, endpoint: String = "/") extends PartialRequestHandler {
@@ -51,14 +55,14 @@ object RestHandler {
     }
 
     private val DOC_PATH = "api-docs" + basePath.toString
-    private val declarationResponse = Future.successful(HttpResp(
-      body = Some(Content(Json.toJson(declaration).toString)),
-      headers = Map(ContentType(_.JSON))
-    ))
+    private val declarationResponse = Json.toJson(declaration).toString
 
     def tryHandle: PartialFunction[HttpReq, Future[HttpResp]] = {
       val docs:PartialFunction[HttpReq, Future[HttpResp]] = {
-        case GET -> DOC_PATH => declarationResponse
+        case GET -> DOC_PATH => Future.successful(HttpResp(
+          body = Some(Content(declarationResponse)),
+          headers = Map(ContentType(_.JSON))
+        ))
       }
       val methods = Function.unlift { req: HttpReq =>
         controller.operations.flatMap { case (op, handler) =>

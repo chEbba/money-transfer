@@ -68,6 +68,9 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
     if (amount.value < 0) {
       throw new IllegalArgumentException(s"Amount $amount < 0")
     }
+    if (fromAccountId == toAccountId) {
+      throw new IllegalArgumentException("Accounts should be different")
+    }
 
     storage.get(fromAccountId) match {
       case None =>
