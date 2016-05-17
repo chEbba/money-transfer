@@ -24,4 +24,9 @@ trait JsonFormat {
   )
   implicit val profileFormat = Json.format[Profile]
   implicit val accountFormat = Json.format[Account]
+
+  implicit val creditFormat = Json.format[Credit]
+  implicit val transferFormat = Json.format[Transfer]
+
+  implicit val transactionWrites = Json.writes[TransactionView]
 }

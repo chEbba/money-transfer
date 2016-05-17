@@ -46,7 +46,8 @@ trait RestController extends Loggable {
             body = Some(Content(Json.toJson(e.getMessage).toString())),
             headers = Map(ContentType(_.JSON))
           )
-        case _ =>
+        case e =>
+          log.warn(s"Error on $req", e)
           HttpResp(INTERNAL_SERVER_ERROR)
       }
     }}

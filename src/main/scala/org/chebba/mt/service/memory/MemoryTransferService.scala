@@ -47,15 +47,15 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
   }
 
   def creditAccount(accountId: Int, amount: Money): Future[CreditTransaction] = Future {
-    // TODO: if <= 0 error
+    if (amount.value < 0) {
+      throw new IllegalArgumentException("Amount < 0")
+    }
     storage.get(accountId) match {
       case None =>
         throw new NoSuchElementException(s"Unknown account $accountId")
 
       case Some(acc) =>
         acc.synchronized {
-          acc.balance += amount.value
-
           val tr = transaction(acc, amount.value, TransactionType.Credit())
           tr.status = TransactionStatus.COMPLETE
 
@@ -66,7 +66,7 @@ class MemoryTransferService(implicit execctx: ExecutionContext) extends AccountS
 
   def transferToAccount(fromAccountId: Int, toAccountId: Int, amount: Money): Future[(TransferFromTransaction, TransferToTransaction)] = Future {
     if (amount.value < 0) {
-      throw new IllegalArgumentException("Amount < 0")
+      throw new IllegalArgumentException(s"Amount $amount < 0")
     }
 
     storage.get(fromAccountId) match {
